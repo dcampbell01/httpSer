@@ -41,31 +41,21 @@ struct URI
   time_t expirationDate;
   time_t lastModifyDate;
 };
-URI * LoadResources(URI * files, int * getNoOfFiles);
-int SaveResources();
+int LoadResources(void * file, int * getNoOfFiles);
+int SaveResources(void * file, int noOfFiles);
 
 
-// Hnadle requsets of clients
+// Handle requests of clients
 void ReadRequest(int, char *);
 void TokenizeRequest(char *request, char *command, char *resource, char *httpVersion);
 
 // Build Response
-char * BuildResponse();
-char * BuildResponse(char * httpVersion, )
-{
-  // Status-Line      =  HTTP-Verlsion Status-Code Reason-Phrase\r\n
-  // (General-Header  =  Date   =  "Date" ":" HTTP-date
-  //                   | Pragma =  "Pragma" ":" 1#pragma-directive  = pragma-directive  = no-cache" | extension-pragma
-  // | Request-Header
-  // | Entity-Header
-  // CRLF
-  // Entity-Body
-}
+char * BuildResponse(char * httpVersion, char * statusCode, time_t expiration, time_t lastMod);
 
 char * BuildStatusLine();
 char * BuildGeneralHeader(char * date);
 char * BuildResponseHeader();
-char * BuildEntityHeader(char * allowedOps, int contentLen, char * expires, char * lastModified)
+char * BuildEntityHeader(char * allowedOps, int contentLen, char * expires, char * lastModified);
 
 // HTTP functions, as defined in http://www.w3.org/Protocols/HTTP/1.0/spec.html#Server
 void GET(int, char *);
@@ -73,10 +63,13 @@ void HEAD(int, char *);
 void PUT(int, char *);
 void DELETE(int, char *);
 
+// threaded client handler
+void * clientHandler(void *arg);
+
 
 // Function Definitions
 
-void *clientHandler(void *arg)
+void * clientHandler(void *arg)
 {
   int n;
   int fd = *(int*)(arg);
@@ -101,27 +94,27 @@ void ReadRequest(int fd, char * request)
 {
   char *command, *resource, *httpVersion;
   TokenizeRequest(request, command, resource, httpVersion);
-  
+  //  Args for BuildResponse:   char * httpVersion, char * statusCode, time_t expiration, time_t lastMod
   
   if(strcmp(request, "GET") == 0)
     {
-      GET(); // attempt function; returns what happened
-      BulidResponse(); // given feedback, build a response
+      GET(fd, resource); // attempt function; returns what happened
+      //BuildResponse(); // given feedback, build a response
     }
   else if(strcmp(request, "HEAD") == 0)
     {	
-      HEAD(); // attempt function; returns what happened
-      BulidResponse(); // given feedback, build a response
+      HEAD(fd, resource); // attempt function; returns what happened
+      //BuildResponse(); // given feedback, build a response
     }
   else if(strcmp(request, "PUT") == 0)
     {	
-      PUT(); // attempt function; returns what happened
-      BulidResponse(); // given feedback, build a response
+      PUT(fd, resource); // attempt function; returns what happened
+      //BuildResponse(); // given feedback, build a response
     }
   else if(strcmp(request, "DELETE") == 0)
     {	
-      DELETE(); // attempt function; returns what happened
-      BulidResponse(); // given feedback, build a response
+      DELETE(fd, resource); // attempt function; returns what happened
+      //BuildResponse(); // given feedback, build a response
     }
   else
     write(fd, BadRequest, strlen(BadRequest));
@@ -134,6 +127,17 @@ void TokenizeRequest(char *request, char *command, char *resource, char *httpVer
 }
 
 
+char * BuildResponse(char * httpVersion, char * statusCode, time_t expiration, time_t lastMod)
+{
+  // Status-Line      =  HTTP-Verlsion Status-Code Reason-Phrase\r\n
+  // (General-Header  =  Date   =  "Date" ":" HTTP-date
+  //                   | Pragma =  "Pragma" ":" 1#pragma-directive  = pragma-directive  = no-cache" | extension-pragma
+  // | Request-Header
+  // | Entity-Header
+  // CRLF
+  // Entity-Body
+  return "";
+}
 
 
 void GET(int fd, char *resourceRequested)
@@ -201,7 +205,7 @@ int main(int argc, char *argv[])
 	}
 
 
-	
+	//loadURI();
 	
 	while (1) {
 		clilen = sizeof(cliaddr);
