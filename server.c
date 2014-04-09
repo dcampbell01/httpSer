@@ -14,123 +14,105 @@
 
 #define MAXLINE	1024
 
-const int backlog = 4;
 
-void parseRequest(int, char *); // parsing (validates!)
+const int backlog = 10;
 
-void getFunc(int, char *); 
+// Status Messages
+const  char * OK = "200 OK"; // Request has succeeded (GET: here's your file.  HEAD: Here's info, you don't have it cached.  DELETE: Success)
+const  char * Created = "201 Created"; // New resource was created (PUT)
+const  char * NotModified = "304 Not Modified"; // Same date on cached and server resource  (HEAD: You have it cached)
+const  char * BadRequest = "400 Bad Request"; // Malformed request; throw it out
+const  char * Forbidden = "403 Forbidden"; // Resource requested is not marked world-readable (PUT&DELETE: no write permission.  GET&HEAD: no read permission)
+const  char * NotFound = "404 Not Found"; // Resource DNE (GET&HEAD&DELETE)
 
-void headFunc(int, char *);
+void ReadRequest(int, char *);
+void TokenizeRequest(char *request, char *command, char* resource, char* httpVersion);
 
-void putFunc(int, char *);
+void GET(int, char *);
+void HEAD(int, char *);
+void PUT(int, char *);
+void DELETE(int, char *);
 
-void delFunc(int, char *);
 
-void statusMesgOK(int);
 
-void statusMesgBadRequest(int);
-
-void statusMesgNotFound(int);
 
 void *clientHandler(void *arg)
 {
-	int n;
+  int n;
+  int fd = *(int*)(arg);
+  char request[MAXLINE];
 	
-	int fd = *(int*)(arg);
-	
-	char str[MAXLINE];
-	
-	while (1) 
+  while (1) 
+    {
+      if ((n = read(fd, request, MAXLINE)) == 0) 
 	{
-        if ((n = read(fd, str, MAXLINE)) == 0) 
-        {
-            close (fd);
-            return (void*) 0;
-        }
-        
-        
-        
-        
-        parseRequest(fd, str);
-		
-		close(fd);
-		return (void*) 0;
+	  close (fd);
+	  return (void*) 0;
+	}    
+
+      ReadRequest(fd, request); 
+      close(fd);
+      return (void*) 0;
+    }	
+}
+
+
+void ReadRequest(int fd, char * request)
+{
+  char *command, *resource, *httpVersion;
+  TokenizeRequest(request, command, resource, httpVersion);
+  
+  
+  if(strcmp(request, "GET") == 0)
+    {
+      //GET(...);
     }
-	
+  else if(strcmp(request, "HEAD") == 0)
+    {	
+      //HEAD(...);
+    }
+  else if(strcmp(request, "PUT") == 0)
+    {	
+      //PUT(...);
+    }
+  else if(strcmp(request, "DELETE") == 0)
+    {	
+      //DELETE(...);
+    }
+  else
+    write(fd, BadRequest, strlen(BadRequest));
+  close(fd);
 }
 
-void parseRequest(int fd, char *str)
+void TokenizeRequest(char *request, char *command, char *resource, char *httpVersion)
 {
-	char get[MAXLINE] = "GET\r\n";
-	char head[MAXLINE] = "HEAD\r\n";
-	char put[MAXLINE] = "PUT\r\n";
-	char delete[MAXLINE] = "DELETE\r\n";
-	
-	
-	char r[MAXLINE];
-	
-	strncat(r, str, strlen(str));
-	
-	if(strcmp(r, get) == 0)
-	{
-	  //getFunc(...);
-		write(fd, get, MAXLINE);
-	}
-	else if(strcmp(r, head) == 0)
-	{	
-	  //headFunc(...);
-		write(fd, head, MAXLINE);
-	}
-	else if(strcmp(r, put) == 0)
-	{	
-	  //putFunc(...);
-		write(fd, put, MAXLINE);
-	}
-	else if(strcmp(r, delete) == 0)
-	{	
-	  //delFunc(...);
-		write(fd, delete, MAXLINE);
-	}
-	else
-	  statusMesgBadRequest(fd);
+  
 }
 
 
-void getFunc(int fd, char *str)
+
+
+void GET(int fd, char *resourceRequested)
 {
-	
+  
 }
 
-void headFunc(int fd, char *str)
+void HEAD(int fd, char *resourceRequested)
 {
-	
+  
 }
 
-void putFunc(int fd, char *str)
+void PUT(int fd, char *newResource)
 {
-	
+  
 }
 
-void delFunc(int fd, char *str)
+void DELETE(int fd, char *toBeDeleted)
 {
-	
+  
 }
 
-void statusMesgOK(int fd)
-{
-	
-}
 
-void statusMesgBadRequest(int fd)
-{
-  char * mesg = "Error 404: Bad Request!!\r\n";
-  write(fd, mesg, strlen(mesg)); 
-}
-
-void statusMesgNotFound(int fd)
-{
-		
-}
 
 int main(int argc, char *argv[])
 {
