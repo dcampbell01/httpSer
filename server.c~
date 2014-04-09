@@ -62,7 +62,7 @@ void *clientHandler(void *arg)
 void parseRequest(int fd, char *str)
 {
 	char get[MAXLINE] = "GET\r\n";
-	char head[MAXLINE] = "HEAD\r\n";
+	char head[MAXLINE] = "HEAD\r\n\r\n";
 	char put[MAXLINE] = "PUT\r\n";
 	char delete[MAXLINE] = "DELETE\r\n";
 	
