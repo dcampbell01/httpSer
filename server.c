@@ -15,13 +15,15 @@
 
 const int backlog = 4;
 
+void checkWord(int, char *);
+
 void getFunc(int, char *);
 
-void headFunc(int, char*);
+void headFunc(int, char *);
 
 void putFunc(int, char *);
 
-void delFunc(int, char*);
+void delFunc(int, char *);
 
 void httpOk(int);
 
@@ -31,40 +33,52 @@ void httpNotThere(int);
 
 void *clientHandler(void *arg)
 {
+	int i, n;
 	
 	int fd = *(int*)(arg);
 	
-	unsigned int i;
+	char str[MAXLINE];
 	
-	char str[100];
-	
-	char method[100];
-	
-	char file[100];
-	
-	char test[10];
-	
-	read(fd, str, strlen(str));
-	
-	
-	if(strcasecmp(method, "GET"))
+	while (1) 
 	{
-		getFunc(fd, file);
+        if ((n = read(fd, str, MAXLINE)) == 0) 
+        {
+            close (fd);
+            return;
+        }
+        
+        
+        
+        
+        checkWord(fd, str);
+		
+		close(fd);
+		return;
+    }
+	
+}
+
+void checkWord(int fd, char *str)
+{
+	char get[] = "GET\r\n";
+	char *head = "HEAD\r\n";
+	char put[MAXLINE] = "PUT\r\n";
+	char *delete = "DELETE\r\n";
+	
+	
+	char r[MAXLINE];
+	
+	strncat(r, str, strlen(str));
+	
+	if(strcmp(r, get) == 0)
+	{
+		write(fd, put, MAXLINE);
+		
 	}
+	else
+	{	
+		write(fd, delete, strlen(delete));
 	
-	if(strcasecmp(method, "HEAD"))
-	{
-		headFunc(fd, file);
-	}
-	
-	if(strcasecmp(method, "PUT"))
-	{
-		putFunc(fd, file);
-	}
-	
-	if(strcasecmp(method, "DELETE"))
-	{
-		delFunc(fd, file);
 	}
 	
 	
