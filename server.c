@@ -31,7 +31,7 @@ const  char * Forbidden = "403 Forbidden"; // Resource requested is not marked w
 const  char * NotFound = "404 Not Found"; // Resource DNE (GET&HEAD&DELETE)
 
 
-
+/*
 // URI struct and functions
 struct URI
 {
@@ -40,18 +40,21 @@ struct URI
   int contentLength;
   time_t expirationDate;
   time_t lastModifyDate;
-};
+  };
 int LoadResources(void * file, int * getNoOfFiles);
 int SaveResources(void * file, int noOfFiles);
+*/
 
 
 // Handle requests of clients
 void ReadRequest(int, char *);
 void TokenizeRequest(char *request, char *command, char *resource, char *httpVersion);
 
+
 // Build Response
 char * BuildResponse(char * httpVersion, char * statusCode, time_t expiration, time_t lastMod);
 
+char * BuildSimpleResponse();
 char * BuildStatusLine();
 char * BuildGeneralHeader(char * date);
 char * BuildResponseHeader();
@@ -86,7 +89,7 @@ void * clientHandler(void *arg)
       ReadRequest(fd, request); 
       close(fd);
       return (void*) 0;
-    }	
+    }
 }
 
 
@@ -168,7 +171,7 @@ int main(int argc, char *argv[])
 {
 
 	int	listenfd, connfd;
-    pthread_t tid;
+	pthread_t tid;
 	unsigned int     clilen;
 	struct 	sockaddr_in cliaddr, servaddr;
 
@@ -224,4 +227,6 @@ int main(int argc, char *argv[])
         }
 
 	}
+
+	
 }
