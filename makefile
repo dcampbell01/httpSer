@@ -12,7 +12,7 @@ SERVERFLAGS=-o server -lpthread
 
 debug : $(FILES)
 	echo;echo;
-	$(CC) $(DEBUG) $(CFLAGS) $(FILES) $(SERVERFLAGS)
+	$(CC) $(DEBUG) $(FILES) $(SERVERFLAGS)
 
 release : $(FILES)
 	echo;echo;

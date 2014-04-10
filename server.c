@@ -12,7 +12,7 @@
 #include <unistd.h>
 #include <time.h>
 #include <sys/stat.h>
-
+//#include <netinet/ip.h>
 
 
 // Server  Constants
@@ -30,24 +30,19 @@ const  char * Forbidden = "403 Forbidden"; // Resource requested is not marked w
 const  char * NotFound = "404 Not Found"; // Resource DNE (GET&HEAD&DELETE)
 
 
-/*
-// URI struct and functions
-struct URI
-{
-  int ID;
-  char * relativePath;
-  int contentLength;
-  time_t expirationDate;
-  time_t lastModifyDate;
-  };
-int LoadResources(void * file, int * getNoOfFiles);
-int SaveResources(void * file, int noOfFiles);
-*/
 
+// threaded client handler
+void * clientHandler(void *arg);
 
 // Handle requests of clients
 void ProcessRequest(int fd, char * request);
 void TokenizeRequest(const char *request, char *method, char *uri, char *version, char *statBuffer, char *body);
+
+// HTTP functions, as defined in http://www.w3.org/Protocols/HTTP/1.0/spec.html#Server
+void GET(int fd, char *uri, char *version);
+void HEAD(int fd, char *uri, char *version);
+void PUT(int fd, char *uri, char *version);
+void DELETE(int fd, char *uri, char *version);
 
 // Build Response
 char * BuildResponse(char *method, char *uri, char *version, char *statBuffer, char *body);
@@ -58,14 +53,7 @@ char * BuildGeneralHeader(char * location); // return "header PragmaPlaceholder"
 char * BuildResponseHeader(char *location, char *wwwAuthenticate); // return "absoluteURI serverName wwwAuthenticate"
 char * BuildEntityHeader(char * allowedOps, int contentLen, char * expires, char * lastModified); // return "allow contentEncoding contentcontentLength expires last modified extension"
 
-// HTTP functions, as defined in http://www.w3.org/Protocols/HTTP/1.0/spec.html#Server
-void GET(int fd, char *uri, char *version);
-void HEAD(int fd, char *uri, char *version);
-void PUT(int fd, char *uri, char *version);
-void DELETE(int fd, char *uri, char *version);
 
-// threaded client handler
-void * clientHandler(void *arg);
 
 
 // Function Definitions
@@ -89,6 +77,7 @@ void * clientHandler(void *arg)
       return (void*) 0;
     }
 }
+
 
 
 void ProcessRequest(int fd, char * request)
@@ -120,12 +109,18 @@ void ProcessRequest(int fd, char * request)
     write(fd, BadRequest, strlen(BadRequest));
   close(fd);
 }
-
 void TokenizeRequest(const char *request, char *method, char *uri, char *version, char *statBuffer, char *body)
 {
   
 }
-
+char * tokenizeStatBuffer(const char fileSize, char *allowedOps, char *expires, char *lastModified)
+{
+  // get fileSize (in bytes) off_t st_size
+  // get allowedOps from file mode
+  // **not worrying about expires
+  // get lastModified from 
+  
+}
 
 char * BuildResponse(char *method, char *uri, char *version, char *statBuffer, char *body)
 {
@@ -139,11 +134,6 @@ char * BuildResponse(char *method, char *uri, char *version, char *statBuffer, c
   strcat(response, method);
   return response;
 }
-
-char * tokenizeStatBuffer(const char *statBuffer, char *allowedOps, char *expires, char *lastModified)
-{
-  //!!!!!!!!!!!!!!!!!!!!!!!!!!!
-}
 char * BuildSimpleResponse(char *method, char *uri, char *version) // return "method space httpVersion"
 {
   char * simpleResponse;
@@ -151,6 +141,26 @@ char * BuildSimpleResponse(char *method, char *uri, char *version) // return "me
   //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   return simpleResponse;
 }
+
+
+void GET(int fd, char *uri, char *version)
+{
+  
+}
+void HEAD(int fd, char *uri, char *version)
+{
+  
+}
+void PUT(int fd, char *uri, char *version)
+{
+  
+}
+void DELETE(int fd, char *uri, char *version)
+{
+  
+}
+
+
 char * BuildStatusLine(char * version, char * statusCodeAndReason) // return "httpVersion statusCode statusReason" 
 {
   return strcat(version, statusCodeAndReason);
@@ -171,25 +181,6 @@ char * BuildEntityHeader(char * allowedOps, int contentLen, char * expires, char
 
 }
 
-void GET(int fd, char *resourceRequested)
-{
-  
-}
-
-void HEAD(int fd, char *resourceRequested)
-{
-  
-}
-
-void PUT(int fd, char *newResource)
-{
-  
-}
-
-void DELETE(int fd, char *toBeDeleted)
-{
-  
-}
 
 
 
@@ -220,7 +211,7 @@ int main(int argc, char *argv[])
 	bzero(&servaddr, sizeof(servaddr));
 
 	servaddr.sin_family 	   = AF_INET;
-	servaddr.sin_addr.s_addr   = inet_addr("127.0.0.1");
+	servaddr.sin_addr.s_addr   = inet_addr(INADDR_ANY); // Assign server to all available IP Addresses
 	servaddr.sin_port          = htons(atoi(argv[1]));
 
 	if (bind(listenfd, (struct sockaddr *)&servaddr, sizeof(servaddr)) == -1) {
