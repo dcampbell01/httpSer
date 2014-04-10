@@ -18,8 +18,7 @@
 // Server  Constants
 #define MAXLINE	1024
 const int backlog = 10;
-const char * serverName = "The Amazing 24-hour Server";
-const char * httpVersion = "HTTP/1.0";
+const char * serverName = "TheAmazing24-hourServer";
 
 
 // Status Messages
@@ -47,24 +46,23 @@ int SaveResources(void * file, int noOfFiles);
 
 
 // Handle requests of clients
-void ReadRequest(int, char *);
-void TokenizeRequest(char *request, char *command, char *resource, char *httpVersion);
-
+void ProcessRequest(int fd, char * request);
+void TokenizeRequest(const char *request, char *method, char *uri, char *version, char *statBuffer, char *body);
 
 // Build Response
-char * BuildResponse(char * httpVersion, char * statusCode, time_t expiration, time_t lastMod);
+char * BuildResponse(char *method, char *uri, char *version, char *statBuffer, char *body);
 
-char * BuildSimpleResponse();
-char * BuildStatusLine();
-char * BuildGeneralHeader(char * date);
-char * BuildResponseHeader();
-char * BuildEntityHeader(char * allowedOps, int contentLen, char * expires, char * lastModified);
+char * BuildSimpleResponse(char *method, char *uri, char *version); // return "method space httpVersion"
+char * BuildStatusLine(char * version, char * statusCodeAndReason); // return "httpVersion statusCode statusReason" 
+char * BuildGeneralHeader(char * location); // return "header PragmaPlaceholder";           (Pragma not implemented)
+char * BuildResponseHeader(char *location, char *wwwAuthenticate); // return "absoluteURI serverName wwwAuthenticate"
+char * BuildEntityHeader(char * allowedOps, int contentLen, char * expires, char * lastModified); // return "allow contentEncoding contentcontentLength expires last modified extension"
 
 // HTTP functions, as defined in http://www.w3.org/Protocols/HTTP/1.0/spec.html#Server
-void GET(int, char *);
-void HEAD(int, char *);
-void PUT(int, char *);
-void DELETE(int, char *);
+void GET(int fd, char *uri, char *version);
+void HEAD(int fd, char *uri, char *version);
+void PUT(int fd, char *uri, char *version);
+void DELETE(int fd, char *uri, char *version);
 
 // threaded client handler
 void * clientHandler(void *arg);
@@ -85,38 +83,37 @@ void * clientHandler(void *arg)
 	  close (fd);
 	  return (void*) 0;
 	}    
-
-      ReadRequest(fd, request); 
+      
+      ProcessRequest(fd, request); 
       close(fd);
       return (void*) 0;
     }
 }
 
 
-void ReadRequest(int fd, char * request)
+void ProcessRequest(int fd, char * request)
 {
-  char *command, *resource, *httpVersion;
-  TokenizeRequest(request, command, resource, httpVersion);
-  //  Args for BuildResponse:   char * httpVersion, char * statusCode, time_t expiration, time_t lastMod
+  char *method, *uri, *version, *statBuffer, *body;
+  TokenizeRequest(request, method, uri, version, statBuffer, body);
   
-  if(strcmp(request, "GET") == 0)
+  if(strcmp(method, "GET") == 0)
     {
-      GET(fd, resource); // attempt function; returns what happened
+      GET(fd, uri, version); // attempt function; returns what happened
       //BuildResponse(); // given feedback, build a response
     }
-  else if(strcmp(request, "HEAD") == 0)
+  else if(strcmp(method, "HEAD") == 0)
     {	
-      HEAD(fd, resource); // attempt function; returns what happened
+      HEAD(fd, uri, version); // attempt function; returns what happened
       //BuildResponse(); // given feedback, build a response
     }
-  else if(strcmp(request, "PUT") == 0)
+  else if(strcmp(method, "PUT") == 0)
     {	
-      PUT(fd, resource); // attempt function; returns what happened
+      PUT(fd, uri, version); // attempt function; returns what happened
       //BuildResponse(); // given feedback, build a response
     }
-  else if(strcmp(request, "DELETE") == 0)
+  else if(strcmp(method, "DELETE") == 0)
     {	
-      DELETE(fd, resource); // attempt function; returns what happened
+      DELETE(fd, uri, version); // attempt function; returns what happened
       //BuildResponse(); // given feedback, build a response
     }
   else
@@ -124,24 +121,55 @@ void ReadRequest(int fd, char * request)
   close(fd);
 }
 
-void TokenizeRequest(char *request, char *command, char *resource, char *httpVersion)
+void TokenizeRequest(const char *request, char *method, char *uri, char *version, char *statBuffer, char *body)
 {
   
 }
 
 
-char * BuildResponse(char * httpVersion, char * statusCode, time_t expiration, time_t lastMod)
+char * BuildResponse(char *method, char *uri, char *version, char *statBuffer, char *body)
 {
-  // Status-Line      =  HTTP-Verlsion Status-Code Reason-Phrase\r\n
-  // (General-Header  =  Date   =  "Date" ":" HTTP-date
-  //                   | Pragma =  "Pragma" ":" 1#pragma-directive  = pragma-directive  = no-cache" | extension-pragma
-  // | Request-Header
-  // | Entity-Header
-  // CRLF
-  // Entity-Body
-  return "";
+  char response[MAXLINE];
+  
+  strcat(response, BuildSimpleResponse(method, uri, version));
+  strcat(response, BuildStatusLine());
+  strcat(response, uri);
+  strcat(response, version);
+  strcat(response, statBuffer);
+  strcat(response, method);
+  return response;
 }
 
+char * tokenizeStatBuffer(const char *statBuffer, char *allowedOps, char *expires, char *lastModified)
+{
+  //!!!!!!!!!!!!!!!!!!!!!!!!!!!
+}
+char * BuildSimpleResponse(char *method, char *uri, char *version) // return "method space httpVersion"
+{
+  char * simpleResponse;
+  // Execute GET
+  //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  return simpleResponse;
+}
+char * BuildStatusLine(char * version, char * statusCodeAndReason) // return "httpVersion statusCode statusReason" 
+{
+  return strcat(version, statusCodeAndReason);
+}
+char * BuildGeneralHeader(char * location) // return "header PragmaPlaceholder";           (Pragma not implemented)
+{
+  return location;
+}
+char * BuildResponseHeader(char *location, char * wwwAuthenticate) // return "absoluteURI serverName wwwAuthenticate"
+{
+  char * responseHeader;
+  strcat(responseHeader, location);
+  strcat(responseHeader, serverName);
+  strcat(responseHeader, wwwAuthenticate);
+}
+char * BuildEntityHeader(char * allowedOps, int contentLen, char * expires, char * lastModified) // return "allow contentEncoding contentcontentLength expires last modified extension"
+{
+
+}
 
 void GET(int fd, char *resourceRequested)
 {
