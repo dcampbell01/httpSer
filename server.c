@@ -13,7 +13,7 @@
 #include <time.h>
 #include <sys/stat.h>
 //#include <netinet/ip.h>
-
+#include <string.h>
 
 // Server  Constants
 #define MAXLINE	1024
@@ -35,8 +35,9 @@ const  char * NotFound = "404 Not Found"; // Resource DNE (GET&HEAD&DELETE)
 void * clientHandler(void *arg);
 
 // Handle requests of clients
-void ProcessRequest(int fd, char * request);
-void TokenizeRequest(const char *request, char *method, char *uri, char *version, char *statBuffer, char *body);
+void ProcessRequest(int fd, char * request, int requestLen);
+void TokenizeRequest(const char *request, char *method, char *uri, char *version, struct stat statBuffer, char *body);
+char **tokenize(const char *input, const char *sep); // from the internet!!
 
 // HTTP functions, as defined in http://www.w3.org/Protocols/HTTP/1.0/spec.html#Server
 void GET(int fd, char *uri, char *version);
@@ -45,9 +46,10 @@ void PUT(int fd, char *uri, char *version);
 void DELETE(int fd, char *uri, char *version);
 
 // Build Response
-char * BuildResponse(char *method, char *uri, char *version, char *statBuffer, char *body);
-
+char * BuildResponse(char *method, char *uri, char *version, char *statBuffer, char *body); // not 100% sure that statBuffer should be the only stat-related variable
+// HTTP\0.9 response
 char * BuildSimpleResponse(char *method, char *uri, char *version); // return "method space httpVersion"
+// HTTP\1.0 response
 char * BuildStatusLine(char * version, char * statusCodeAndReason); // return "httpVersion statusCode statusReason" 
 char * BuildGeneralHeader(char * location); // return "header PragmaPlaceholder";           (Pragma not implemented)
 char * BuildResponseHeader(char *location, char *wwwAuthenticate); // return "absoluteURI serverName wwwAuthenticate"
@@ -80,72 +82,170 @@ void * clientHandler(void *arg)
 
 
 
-void ProcessRequest(int fd, char * request)
+void ProcessRequest(int fd, char * request, int requestLen)
 {
-  char *method, *uri, *version, *statBuffer, *body;
+  char *method, *uri, *version, *body;
+  struct stat statBuffer;
   TokenizeRequest(request, method, uri, version, statBuffer, body);
   
   if(strcmp(method, "GET") == 0)
     {
-      GET(fd, uri, version); // attempt function; returns what happened
-      //BuildResponse(); // given feedback, build a response
+      GET(fd, uri, version);
     }
   else if(strcmp(method, "HEAD") == 0)
     {	
-      HEAD(fd, uri, version); // attempt function; returns what happened
-      //BuildResponse(); // given feedback, build a response
+      HEAD(fd, uri, version);
     }
   else if(strcmp(method, "PUT") == 0)
     {	
-      PUT(fd, uri, version); // attempt function; returns what happened
-      //BuildResponse(); // given feedback, build a response
+      PUT(fd, uri, version);
     }
   else if(strcmp(method, "DELETE") == 0)
     {	
-      DELETE(fd, uri, version); // attempt function; returns what happened
-      //BuildResponse(); // given feedback, build a response
+      DELETE(fd, uri, version);
     }
   else
     write(fd, BadRequest, strlen(BadRequest));
   close(fd);
 }
-void TokenizeRequest(const char *request, char *method, char *uri, char *version, char *statBuffer, char *body)
+
+// Currently, ONLY handles 0.9 requests
+void TokenizeRequest(const char *request, char *method, char *uri, char *version, struct stat statBuffer, char *body)
 {
-  
+  // request is the entire request string sent from the client and then
+  //   it is broken down and stored in the other strings
+  // *only method, uri, and version is returned in HTTP\0.9 requests
+  char ** subStr = (char**)tokenize(request, " "); // Does NOT separate by newlines; for 1.0 requests more work is needed
+  method = subStr[0];
+  uri = subStr[1];
+  version = subStr[2];
 }
-char * tokenizeStatBuffer(const char fileSize, char *allowedOps, char *expires, char *lastModified)
+// http://stackoverflow.com/questions/1692206/the-intricacy-of-a-string-tokenization-function-in-c
+// I did a straight copy and paste because that code was too much to bother with until we get the needed functionality.
+char **tokenize(const char *input, const char *sep)
 {
-  // get fileSize (in bytes) off_t st_size
-  // get allowedOps from file mode
-  // **not worrying about expires
-  // get lastModified from 
-  
+  /* strtok ruins its input string, so we'll work on a copy 
+   */
+  char* dup;
+
+  /* This is the array filled with tokens and returned
+   */
+  char** toks = 0;
+
+  /* Current token
+   */
+  char* cur_tok;
+
+  /* Size of the 'toks' array. Starts low and is doubled when
+  ** exhausted.
+  */
+  size_t size = 2;
+
+  /* 'ntok' points to the next free element of the 'toks' array
+   */
+  size_t ntok = 0;
+  size_t i;
+
+  if (!(dup = strdup(input)))
+    return NULL;
+
+  if (!(toks = malloc(size * sizeof(*toks))))
+    goto cleanup_exit;
+
+  cur_tok = (char*)strtok(dup, sep);
+
+  /* While we have more tokens to process...
+   */
+  while (cur_tok)
+    {
+      /* We should still have 2 empty elements in the array, 
+      ** one for this token and one for the sentinel.
+      */
+      if (ntok > size - 2)
+        {
+	  char** newtoks;
+	  size *= 2;
+
+	  newtoks = realloc(toks, size * sizeof(*toks));
+
+	  if (!newtoks)
+	    goto cleanup_exit;
+
+	  toks = newtoks;
+        }
+
+      /* Now the array is definitely large enough, so we just
+      ** copy the new token into it.
+      */
+      toks[ntok] = strdup(cur_tok);
+
+      if (!toks[ntok])
+	goto cleanup_exit;
+
+      ntok++;
+      cur_tok = (char*)strtok(0, sep);
+    }    
+
+  free(dup);
+  toks[ntok] = 0;
+  return toks;
+
+ cleanup_exit:
+  free(dup);
+  for (i = 0; i < ntok; ++i)
+    free(toks[i]);
+  free(toks);
+  return NULL;
 }
+
 
 char * BuildResponse(char *method, char *uri, char *version, char *statBuffer, char *body)
 {
   char response[MAXLINE];
-  
+  // HTTP\0.9 response
   strcat(response, BuildSimpleResponse(method, uri, version));
-  strcat(response, BuildStatusLine());
-  strcat(response, uri);
-  strcat(response, version);
-  strcat(response, statBuffer);
-  strcat(response, method);
+
+  //  HTTP\1.0 response (requires a little more logic in this function)
+  //  strcat(response, BuildStatusLine()); strcat(response, "\r\n");
+  //  strcat(response, BuildGeneralHeader()); strcat(response, "\r\n");
+  //  strcat(response, BuildResponseHeader()); strcat(response, "\r\n");
+  //strcat(response, BuildEntitityHeader());
+
+
+  strcat(response, "\r\n\r\n");
+  strcat(response, body); 
   return response;
 }
-char * BuildSimpleResponse(char *method, char *uri, char *version) // return "method space httpVersion"
+char * BuildSimpleResponse(char *methodURIVersion) // return "method space httpVersion"
 {
-  char * simpleResponse;
   // Execute GET
   //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   return simpleResponse;
 }
 
 
-void GET(int fd, char *uri, char *version)
+void GET(int fd, char *resource, int resourceLen)
 {
-  
+  char copy[MAXLINE];
+  FILE * file;
+  char e[1024];
+  file = fopen(resourceRequested, "r");
+  if(!file)
+    {
+      //throw that 404
+    }
+  else
+    {
+      while(fgets(copy, 1024, file) != NULL)
+	{
+	  /* get a line, up to 80 chars from fr. done if NULL */
+	  sscanf (copy, "%s", e);
+	  /* convert the string to a long int */
+	  write(fd, copy, strlen(copy));
+	  //write over to socket....
+	}
+      fclose(file); /* close the file prior to exiting the routine */
+    }
 }
 void HEAD(int fd, char *uri, char *version)
 {
@@ -225,9 +325,6 @@ int main(int argc, char *argv[])
                 errno, strerror(errno));
         return -1;
 	}
-
-
-	//loadURI();
 	
 	while (1) {
 		clilen = sizeof(cliaddr);
