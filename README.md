@@ -24,19 +24,17 @@ chmod 777 index.htm
 The State of the Program:
 ------------------------
 
-(Might have) Completed clientHandler, Build all response lines but not BuildResponse() SimpleResponse().
-Need to finish BuildResponse functions, all HTTP functions, ...
+ Finally figured out how to pass things around sanely in C.  All that needs to be implmented are the required 
+HTTP methods (for HTTP\0.9 functionality).
 
 
 
 Unresolved Issues:
 ------------------
 
-- rearrange ReadRequest to parse requests and select between the four required HTTP functions
-- implement HTTPServer::GetIPAddress()    (Currently hardcoded to 127.0.0.1.  Worst case, hardcode to 144.37.1.24)
 - implement HEAD, GET, PUT, DELETE.
 - Fix all lines marked !!!!!!!!!!!!!!!!!!!!!!!!!!!!!! or ///////////////////////////////////////////
-- implement required authentication scheme
+- Test that our server respods to HTTP\1.0 responses with an HTTP\0.9 response
 
 
 Miscellaneous Notes:

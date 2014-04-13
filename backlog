@@ -1,0 +1,3 @@
+  Features that need full HTTP\1.0 messages that we thought we'd need:
+
+- Caching
