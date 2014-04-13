@@ -14,16 +14,18 @@
 #include <sys/stat.h>
 //#include <netinet/ip.h>
 #include <string.h>
-
+#include <sys/stat.h>
 
 // Server  Constants
 #define MAXLINE	1024
+#define SERVER_NAME "TheNotSoAmazing8-dayServer"
+#define HTTP_VERSION "HTTP\1.0"
+#define DATE_FORMAT "a, %d %b %Y %H:%M:%S GMT" // RFC1123 format
 const int backlog = 10;
-const char * serverName = "TheNotSoAmazing8-dayServer";
 typedef int bool;
 #define true 1
 #define false 0
-
+#define LN "\r\n"
 
 // Status Messages
 const  char * OK = "200 OK"; // Request has succeeded (GET: here's your file.  HEAD: Here's info, you don't have it cached.  DELETE: Success)
@@ -40,9 +42,10 @@ void * clientHandler(void *arg);
 
 // Handle requests of clients
 void ProcessRequest(int fd, char * request, int requestLen);
-char **tokenize(const char *input, const char *sep); // from the internet!!
 
 // HTTP functions, as defined in http://www.w3.org/Protocols/HTTP/1.0/spec.html#Server
+char * getMimeType(char *name);
+void sendHeaders(int fd, const char *status, char *extra, char *fileExtension, int length, time_t lastModDate);
 void GET(int fd, char *resource, int resourceLen);
 void HEAD(int fd, char *resource, int resourceLen);
 void PUT(int fd, char *resource, int resourceLen);
@@ -76,33 +79,22 @@ void * clientHandler(void *arg)
 
 void ProcessRequest(int fd, char * request, int requestLen)
 { 
-  bool hasTwoArgs = true; // until proven otherwise
-  char ** subStr = (char**)tokenize(request, " ");
   char *method;
   char *resource;
-  
+  char *version;
 
-  if( (strlen(subStr[0])==0) || (subStr[0]=="") )
-    hasTwoArgs = false;
+  // Does NOT check for correct number of arguments !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  method = strtok(request, " ");
+  resource = strtok(NULL, " ");
+  version = strtok(NULL, " "); // currently does nothing with version received !!!!!!!!!!!!!!!!!!
 
-  if( (strlen(subStr[1])==0) || (subStr[1]=="") ) //!!!!!!!!!!!!!!!!!!!!! Does this handle empty strings sent in?? or less than 2 args?????
-    hasTwoArgs = false;
-
-  if( ! hasTwoArgs)
-    {
-      write(fd, BadRequest, strlen(BadRequest));
-      close(fd);
-      return; // exit function early
-    }
-
-  method = subStr[0];
-  resource = subStr[1];
-  int resourceLen = strlen(resource);
   // special case: if resource is just forward slash then resource is index.html
   if( strcmp(resource, "/")==0 )
     resource = "index.html";
+  printf("request: %s %s %s", method, resource, version); 
   
-  
+
+  int resourceLen = strlen(resource);
   if(strcmp(method, "GET") == 0)
     {
       GET(fd, resource, resourceLen);
@@ -120,25 +112,94 @@ void ProcessRequest(int fd, char * request, int requestLen)
       DELETE(fd, resource, resourceLen);
     }
   else
-    write(fd, BadRequest, strlen(BadRequest));
+    {
+      write(fd, BadRequest, strlen(BadRequest));
+      write(fd, LN, strlen(LN));
+    }
   close(fd);
   return; // exit function
 }
 
+char * getMimeType(char *name)
+{
+  char *ext = strrchr(name, '.');
+  if (!ext) 
+    return NULL;
+  
 
+  if (strcmp(ext, ".html") == 0 || strcmp(ext, ".htm") == 0)
+    return "text/html";
+  else
+    return NULL;
+}
+
+
+void sendHeaders(int fd, const char *status, char *extra, char *fileExtension, int length, time_t lastModDate)
+{
+  time_t now;
+  char timeBuf[128];
+
+  fprintf((FILE*)fd, "%s %s\r\n", HTTP_VERSION, status);
+  fprintf((FILE*)fd, "Server: %s\r\n", SERVER_NAME); 
+ 
+  strftime(timeBuf, sizeof(timeBuf), DATE_FORMAT, gmtime(&now));
+  fprintf((FILE*)fd, "Date: %s\r\n", timeBuf);
+  
+  if(extra) fprintf((FILE*)fd, "%s\r\n", extra);
+  if(fileExtension) fprintf((FILE*)fd, "Content-Type: %s\r\n", fileExtension);
+  if(length >= 0) fprintf((FILE*)fd, "Content-Length: %d\r\n", length);
+    if(lastModDate != -1)
+      {
+	strftime(timeBuf, sizeof(timeBuf), DATE_FORMAT, gmtime(&lastModDate));
+	fprintf((FILE*)fd, "Last-Modified: %s\r\n", timeBuf);
+      }
+  fprintf((FILE*)fd, "\r\n\r\n");
+}
 
 void GET(int fd, char *resource,  int resourceLen)
 {
-
   // Open requested resource and send back the contents
+  struct stat statBuf;
+  char body[MAXLINE];
+
+  FILE *file = fopen(resource, "r");
+  if( ! file)
+    {
+      write(fd, NotFound, strlen(NotFound));
+      write(fd, LN, strlen(LN));
+    }
+  else
+    {
+      if(stat(resource, &statBuf) == -1)
+	{
+	  perror("stat");
+	  return;
+	}
+      int bodyLen = S_ISREG(statBuf.st_mode) ? statBuf.st_size : -1;
+      sendHeaders(fd, OK, NULL, getMimeType(resource), bodyLen, statBuf.st_mtime);
+      int next;
+      while((next = fread(body, 1, sizeof(body), file)) > 0)
+	fwrite(body, 1, next, (FILE*)fd);
+    }
 }
 
 
 void HEAD(int fd, char *resource,  int resourceLen)
 {
+  // Open requested resource and send back the contents
+  struct stat statBuf;
+  char body[MAXLINE];
 
-  // Send back only the header information (use stat())
+  FILE *file = fopen(resource, "r");
+  if( ! file)
+    write(fd, NotFound, strlen(NotFound));
+  else
+    {
+      int bodyLen = S_ISREG(statBuf.st_mode) ? statBuf.st_size : -1;
+      sendHeaders(fd, OK, NULL, "text/html", bodyLen, statBuf.st_mtime);
+    }
 }
+
 
 
 void PUT(int fd, char *resource,  int resourceLen)
@@ -181,7 +242,7 @@ int main(int argc, char *argv[])
 	bzero(&servaddr, sizeof(servaddr));
 
 	servaddr.sin_family 	   = AF_INET;
-	servaddr.sin_addr.s_addr   = inet_addr(INADDR_ANY); // Assign server to all available IP Addresses
+	servaddr.sin_addr.s_addr   = INADDR_ANY; // Assign server to all available IP Addresses
 	servaddr.sin_port          = htons(atoi(argv[1]));
 
 	if (bind(listenfd, (struct sockaddr *)&servaddr, sizeof(servaddr)) == -1) {
@@ -215,84 +276,4 @@ int main(int argc, char *argv[])
 	}
 
 	
-}
-
-
-
-// http://stackoverflow.com/questions/1692206/the-intricacy-of-a-string-tokenization-function-in-c
-// I did a straight copy and paste because that code was too much to bother with until we get the needed functionality.
-char **tokenize(const char *input, const char *sep)
-{
-  /* strtok ruins its input string, so we'll work on a copy 
-   */
-  char* dup;
-
-  /* This is the array filled with tokens and returned
-   */
-  char** toks = 0;
-
-  /* Current token
-   */
-  char* cur_tok;
-
-  /* Size of the 'toks' array. Starts low and is doubled when
-  ** exhausted.
-  */
-  size_t size = 2;
-
-  /* 'ntok' points to the next free element of the 'toks' array
-   */
-  size_t ntok = 0;
-  size_t i;
-
-  if (!(dup = strdup(input)))
-    return NULL;
-
-  if (!(toks = malloc(size * sizeof(*toks))))
-    goto cleanup_exit;
-
-  cur_tok = (char*)strtok(dup, sep);
-
-  /* While we have more tokens to process...
-   */
-  while (cur_tok)
-    {
-      /* We should still have 2 empty elements in the array, 
-      ** one for this token and one for the sentinel.
-      */
-      if (ntok > size - 2)
-        {
-	  char** newtoks;
-	  size *= 2;
-
-	  newtoks = realloc(toks, size * sizeof(*toks));
-
-	  if (!newtoks)
-	    goto cleanup_exit;
-
-	  toks = newtoks;
-        }
-
-      /* Now the array is definitely large enough, so we just
-      ** copy the new token into it.
-      */
-      toks[ntok] = strdup(cur_tok);
-
-      if (!toks[ntok])
-	goto cleanup_exit;
-
-      ntok++;
-      cur_tok = (char*)strtok(0, sep);
-    }    
-
-  free(dup);
-  toks[ntok] = 0;
-  return toks;
-
- cleanup_exit:
-  free(dup);
-  for (i = 0; i < ntok; ++i)
-    free(toks[i]);
-  free(toks);
-  return NULL;
 }

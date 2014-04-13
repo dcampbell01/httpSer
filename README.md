@@ -22,10 +22,13 @@ chmod 777 index.htm
 
 
 The State of the Program:
-------------------------
+-------------------------
 
- Finally figured out how to pass things around sanely in C.  All that needs to be implmented are the required 
-HTTP methods (for HTTP\0.9 functionality).
+Receives HTTP\1.0 responses and processes them as if they were HTTP\0.9 (simple) requests.  This means no 
+caching or authentication.  It creates and sends valid HTTP\1.0 responses. (or at least is meant to do that;
+currently none of the HTTP methods are functioning properly)
+
+Strings are now passed around sanely.  
 
 
 
