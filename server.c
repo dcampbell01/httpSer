@@ -192,7 +192,10 @@ void HEAD(int fd, char *resource,  int resourceLen)
 
   FILE *file = fopen(resource, "r");
   if( ! file)
-    write(fd, NotFound, strlen(NotFound));
+    {
+      write(fd, NotFound, strlen(NotFound));
+      write(fd, LN, strlen(LN));
+    }
   else
     {
       int bodyLen = S_ISREG(statBuf.st_mode) ? statBuf.st_size : -1;
