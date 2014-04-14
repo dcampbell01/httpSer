@@ -27,6 +27,8 @@ typedef int bool;
 #define false 0
 #define LN "\r\n"
 
+
+
 // Status Messages
 const  char * OK = "200 OK"; // Request has succeeded (GET: here's your file.  HEAD: Here's info, you don't have it cached.  DELETE: Success)
 const  char * Created = "201 Created"; // New resource was created (PUT)
@@ -156,8 +158,8 @@ void sendHeaders(int fd, const char *status, char *extra, char *fileExtension, i
     }
   if(length)
     {
-      char *lenStr;
-      itoa(length, lenStr, 10);
+      char lenStr[MAXLINE];
+      snprintf(lenStr, sizeof(lenStr), "%d", length);
       strcat(sb, "Content-Length: "); strcat(sb, lenStr); strcat(sb, LN);
     }
   if(lastModDate != -1)
@@ -191,9 +193,10 @@ void GET(int fd, char *resource,  int resourceLen)
       int bodyLen = S_ISREG(statBuf.st_mode) ? statBuf.st_size : -1;
       sendHeaders(fd, OK, NULL, getMimeType(resource), bodyLen, statBuf.st_mtime);
       int next;
+      FILE* fp = fdopen(fd, "w");
       while( (next = fread(body, 1, sizeof(body), file)) > 0)
 	  {
-	fwrite(body, 1, next, (FILE*)fd);
+	    fwrite(body, 1, next, fp);
 	  }
     }
 }
@@ -295,3 +298,4 @@ int main(int argc, char *argv[])
 	
 	
 }
+
