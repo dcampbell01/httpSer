@@ -87,17 +87,19 @@ void ProcessRequest(int fd, char * request, int requestLen)
   method = strtok(request, " ");
   resource = strtok(NULL, " ");
   version = strtok(NULL, " "); // currently does nothing with version received !!!!!!!!!!!!!!!!!!
-
+  
   // special case: if resource is just forward slash then resource is index.html
   if( strcmp(resource, "/")==0 )
     resource = "index.html";
+
   printf("request: %s %s %s", method, resource, version); 
   
+  //GET(fd, "index.html", strlen("index.html"));
 
   int resourceLen = strlen(resource);
   if(strcmp(method, "GET") == 0)
     {
-      GET(fd, resource, resourceLen);
+      GET(fd, "index.html", 10);
     }
   else if(strcmp(method, "HEAD") == 0)
     {	
@@ -138,22 +140,32 @@ void sendHeaders(int fd, const char *status, char *extra, char *fileExtension, i
 {
   time_t now;
   char timeBuf[128];
+  char sb[MAXLINE];
 
-  fprintf((FILE*)fd, "%s %s\r\n", HTTP_VERSION, status);
-  fprintf((FILE*)fd, "Server: %s\r\n", SERVER_NAME); 
- 
+  strcat(sb, HTTP_VERSION); strcat(sb, " "); strcat(sb, status); strcat(sb, LN);
+  strcat(sb, SERVER_NAME); strcat(sb, " "); strcat(sb, status); strcat(sb, LN);
   strftime(timeBuf, sizeof(timeBuf), DATE_FORMAT, gmtime(&now));
-  fprintf((FILE*)fd, "Date: %s\r\n", timeBuf);
-  
-  if(extra) fprintf((FILE*)fd, "%s\r\n", extra);
-  if(fileExtension) fprintf((FILE*)fd, "Content-Type: %s\r\n", fileExtension);
-  if(length >= 0) fprintf((FILE*)fd, "Content-Length: %d\r\n", length);
-    if(lastModDate != -1)
-      {
-	strftime(timeBuf, sizeof(timeBuf), DATE_FORMAT, gmtime(&lastModDate));
-	fprintf((FILE*)fd, "Last-Modified: %s\r\n", timeBuf);
-      }
-  fprintf((FILE*)fd, "\r\n\r\n");
+  strcat(sb, "Date: "); strcat(sb, timeBuf); strcat(sb, LN);
+  if(extra)
+    {
+      strcat(sb, extra); strcat(sb, LN);
+    }
+  if(fileExtension)
+    {
+      strcat(sb, "Content-Type: "); strcat(sb, fileExtension); strcat(sb, LN);
+    }
+  if(length)
+    {
+      char *lenStr;
+      itoa(length, lenStr, 10);
+      strcat(sb, "Content-Length: "); strcat(sb, lenStr); strcat(sb, LN);
+    }
+  if(lastModDate != -1)
+    {
+      strftime(timeBuf, sizeof(timeBuf), DATE_FORMAT, gmtime(&lastModDate));
+      strcat(sb, "Last-Modified: "); strcat(sb, timeBuf); strcat(sb, LN);
+    }
+  strcat(sb, LN); strcat(sb, LN);
 }
 
 void GET(int fd, char *resource,  int resourceLen)
@@ -162,7 +174,8 @@ void GET(int fd, char *resource,  int resourceLen)
   struct stat statBuf;
   char body[MAXLINE];
 
-  FILE *file = fopen(resource, "r");
+  FILE *file;
+  file = fopen(resource, "r");
   if( ! file)
     {
       write(fd, NotFound, strlen(NotFound));
@@ -178,8 +191,10 @@ void GET(int fd, char *resource,  int resourceLen)
       int bodyLen = S_ISREG(statBuf.st_mode) ? statBuf.st_size : -1;
       sendHeaders(fd, OK, NULL, getMimeType(resource), bodyLen, statBuf.st_mtime);
       int next;
-      while((next = fread(body, 1, sizeof(body), file)) > 0)
+      while( (next = fread(body, 1, sizeof(body), file)) > 0)
+	  {
 	fwrite(body, 1, next, (FILE*)fd);
+	  }
     }
 }
 
@@ -222,61 +237,61 @@ void DELETE(int fd, char *resource,  int resourceLen)
 
 int main(int argc, char *argv[])
 {
-
-	int	listenfd, connfd;
-	pthread_t tid;
-	unsigned int     clilen;
-	struct 	sockaddr_in cliaddr, servaddr;
-
-	if (argc != 2) {
-	  printf("Usage: caseServer <port> \n");
-	  return -1;
-	}
-
-
-	listenfd = socket(AF_INET, SOCK_STREAM, 0);
-	if (listenfd == -1)
-	{
-		fprintf(stderr, "Error unable to create socket, errno = %d (%s) \n",
-                errno, strerror(errno));
-		return -1;
-	}
-
+  
+  int	listenfd, connfd;
+  pthread_t tid;
+  unsigned int     clilen;
+  struct 	sockaddr_in cliaddr, servaddr;
+  
+  if (argc != 2) {
+    printf("Usage: caseServer <port> \n");
+    return -1;
+  }
+  
+  
+  listenfd = socket(AF_INET, SOCK_STREAM, 0);
+  if (listenfd == -1)
+    {
+      fprintf(stderr, "Error unable to create socket, errno = %d (%s) \n",
+	      errno, strerror(errno));
+      return -1;
+    }
+  
 	bzero(&servaddr, sizeof(servaddr));
-
+	
 	servaddr.sin_family 	   = AF_INET;
 	servaddr.sin_addr.s_addr   = INADDR_ANY; // Assign server to all available IP Addresses
 	servaddr.sin_port          = htons(atoi(argv[1]));
-
+	
 	if (bind(listenfd, (struct sockaddr *)&servaddr, sizeof(servaddr)) == -1) {
-        fprintf(stderr, "Error binding to socket, errno = %d (%s) \n",
-                errno, strerror(errno));
-        return -1;
+	  fprintf(stderr, "Error binding to socket, errno = %d (%s) \n",
+		  errno, strerror(errno));
+	  return -1;
 	}
-
+	
 	if (listen(listenfd, backlog) == -1) {
-        fprintf(stderr, "Error listening for connection request, errno = %d (%s) \n",
-                errno, strerror(errno));
-        return -1;
+	  fprintf(stderr, "Error listening for connection request, errno = %d (%s) \n",
+		  errno, strerror(errno));
+	  return -1;
 	}
 	
 	while (1) {
-		clilen = sizeof(cliaddr);
-		if ((connfd = accept(listenfd, (struct sockaddr *)&cliaddr, &clilen)) < 0 ) {
-			if (errno == EINTR)
-				continue;
-			else {
-                fprintf(stderr, "Error connection request refused, errno = %d (%s) \n",
-                        errno, strerror(errno));
-			}
-		}
-
-        if (pthread_create(&tid, NULL, clientHandler, (void *)&connfd) != 0) {
-           fprintf(stderr, "Error unable to create thread, errno = %d (%s) \n",
-                   errno, strerror(errno));
-        }
-
+	  clilen = sizeof(cliaddr);
+	  if ((connfd = accept(listenfd, (struct sockaddr *)&cliaddr, &clilen)) < 0 ) {
+	    if (errno == EINTR)
+	      continue;
+	    else {
+	      fprintf(stderr, "Error connection request refused, errno = %d (%s) \n",
+		      errno, strerror(errno));
+	    }
+	  }
+	  
+	  if (pthread_create(&tid, NULL, clientHandler, (void *)&connfd) != 0) {
+	    fprintf(stderr, "Error unable to create thread, errno = %d (%s) \n",
+		    errno, strerror(errno));
+	  }
+	  
 	}
-
+	
 	
 }
