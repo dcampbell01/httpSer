@@ -193,7 +193,7 @@ void GET(int fd, char *resource,  int resourceLen)
     {
       if(stat(resource, &statBuf) == -1)
 	{
-	  perror("stat");
+	  perror("stat"); // TEST CODE !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 	  return;
 	}
       int bodyLen = S_ISREG(statBuf.st_mode) ? statBuf.st_size : -1;
@@ -240,7 +240,7 @@ void PUT(int fd, char *resource,  int resourceLen, char *request, int requestLen
   int num;
   if((file = fopen(resource, "w")) != NULL)
     {
-      if( (num = fputs( test, file )) != EOF )
+      if( (num = fputs( request, file )) != EOF )
 	fclose(file);
       else
 	sendHeaders(fd, Forbidden, NULL, getMimeType(resource),0,0);
