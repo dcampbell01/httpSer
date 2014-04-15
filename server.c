@@ -17,10 +17,10 @@
 #include <sys/stat.h>
 
 // Server  Constants
-#define MAXLINE	1024
+#define MAXLINE	40000
 #define SERVER_NAME "TheNotSoAmazing8-dayServer"
-#define HTTP_VERSION "HTTP\1.0"
-#define DATE_FORMAT "a, %d %b %Y %H:%M:%S GMT" // RFC1123 format
+#define HTTP_VERSION "HTTP/1.0"
+#define DATE_FORMAT "%d %b %Y %H:%M:%S GMT" // RFC1123 format
 const int backlog = 10;
 typedef int bool;
 #define true 1
@@ -104,7 +104,7 @@ void ProcessRequest(int fd, char * request, int requestLen)
   int resourceLen = strlen(resource);
   if(strcmp(method, "GET") == 0)
     {
-      GET(fd, "index.html", 10);
+      GET(fd, resource, 10);
     }
   else if(strcmp(method, "HEAD") == 0)
     {	
@@ -144,11 +144,12 @@ char * getMimeType(char *name)
 void sendHeaders(int fd, const char *status, char *extra, char *fileExtension, int length, time_t lastModDate)
 {
   time_t now;
+  time(&now);
   char timeBuf[128];
   char sb[MAXLINE];
 
   strcat(sb, HTTP_VERSION); strcat(sb, " "); strcat(sb, status); strcat(sb, LN);
-  strcat(sb, SERVER_NAME); strcat(sb, " "); strcat(sb, status); strcat(sb, LN);
+  strcat(sb, "Server: "); strcat(sb, SERVER_NAME); strcat(sb, " "); strcat(sb, status); strcat(sb, LN);
   strftime(timeBuf, sizeof(timeBuf), DATE_FORMAT, gmtime(&now));
   strcat(sb, "Date: "); strcat(sb, timeBuf); strcat(sb, LN);
   if(extra)
@@ -171,6 +172,7 @@ void sendHeaders(int fd, const char *status, char *extra, char *fileExtension, i
       strcat(sb, "Last-Modified: "); strcat(sb, timeBuf); strcat(sb, LN);
     }
   strcat(sb, LN); strcat(sb, LN);
+  write(fd, sb, strlen(sb));
 }
 
 void GET(int fd, char *resource,  int resourceLen)
@@ -211,11 +213,13 @@ void GET(int fd, char *resource,  int resourceLen)
 
 void HEAD(int fd, char *resource,  int resourceLen)
 {
+
   // Open requested resource and send back the contents
   struct stat statBuf;
   char body[MAXLINE];
 
-  FILE *file = fopen(resource, "r");
+  FILE *file;
+  file = fopen(resource, "r");
   if( ! file)
     {
       write(fd, NotFound, strlen(NotFound));
@@ -223,8 +227,14 @@ void HEAD(int fd, char *resource,  int resourceLen)
     }
   else
     {
+      if(stat(resource, &statBuf) == -1)
+	{
+	  perror("stat");
+	  return;
+	}
       int bodyLen = S_ISREG(statBuf.st_mode) ? statBuf.st_size : -1;
-      sendHeaders(fd, OK, NULL, "text/html", bodyLen, statBuf.st_mtime);
+      sendHeaders(fd, OK, NULL, getMimeType(resource), bodyLen, statBuf.st_mtime); 
+      
     }
 }
 
@@ -232,14 +242,41 @@ void HEAD(int fd, char *resource,  int resourceLen)
 
 void PUT(int fd, char *resource,  int resourceLen)
 {
+  char data[4096];
 
+  FILE * checkFileExists = fopen(resource, "r");
+  if (checkFileExists)
+    {
+      write(fd, Forbidden, strlen(Forbidden));
+      write(fd, LN, strlen(LN));
+    }
+  else
+    {
+      fclose(checkFileExists);
+      FILE *putFile = fopen(resource, "w");
+      int rd;
+      while ((rd = read(fd, data, 4096)) > 0) 
+	fputs(data, putFile);
+
+      fclose(putFile);
+      sendHeaders(fd, OK, NULL, getMimeType(resource),0,0);
+    }
 }
 
 
 void DELETE(int fd, char *resource,  int resourceLen)
 {
-
-  // Delete the resource as requested
+  FILE *file = fopen(resource, "a+");
+  if (!file)
+    {
+      write(fd, Forbidden, strlen(Forbidden));
+      write(fd, LN, strlen(LN));
+    }
+  else
+    {
+      remove(resource);
+      sendHeaders(fd, OK, NULL, getMimeType(resource),0,0);
+    }
 }
 
 
