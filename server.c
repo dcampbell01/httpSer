@@ -91,11 +91,10 @@ void ProcessRequest(int fd, char * request, int requestLen)
   resource = strtok(NULL, " ");
   version = strtok(NULL, " "); // currently does nothing with version received !!!!!!!!!!!!!!!!!!
   // special case: if resource is just forward slash then resource is index.html
-  if( (method == NULL) || (resource == NULL) || (version == NULL) )
+  if( (method == NULL) || (resource == NULL) || (version == NULL) ) // require 3 arguments
     {
-      write(fd, BadRequest, strlen(BadRequest));
-      write(fd, LN, strlen(LN));
-      return; // require 3 arguments
+      sendHeaders(fd, BadRequest, NULL, getMimeType(resource),0,0);
+      return;
     }
   
   if( strcmp(resource, "/")==0 )
@@ -120,10 +119,9 @@ void ProcessRequest(int fd, char * request, int requestLen)
       DELETE(fd, resource, resourceLen);
     }
   else
-    {
-      write(fd, BadRequest, strlen(BadRequest));
-      write(fd, LN, strlen(LN));
-    }
+    sendHeaders(fd, BadRequest, NULL, getMimeType(resource),0,0);
+
+
   close(fd);
   return; // exit function
 }
@@ -186,8 +184,7 @@ void GET(int fd, char *resource,  int resourceLen)
   file = fopen(resource, "r");
   if( ! file)
     {
-      write(fd, NotFound, strlen(NotFound));
-      write(fd, LN, strlen(LN));
+      sendHeaders(fd, NotFound, NULL, getMimeType(resource),0,0);
     }
   else
     {
@@ -200,10 +197,6 @@ void GET(int fd, char *resource,  int resourceLen)
       sendHeaders(fd, OK, NULL, getMimeType(resource), bodyLen, statBuf.st_mtime);
       int next;
       FILE* fp = fdopen(fd, "w");
-      /*while( (next = fread(body, 1, sizeof(body), file)) > 0)
-	  {
-	    fwrite(body, 1, next, fp);
-	    }*/
       char temp[MAXLINE];
       while(fgets(temp, MAXLINE, file) != NULL)
 	strcat(body, temp);
@@ -222,10 +215,7 @@ void HEAD(int fd, char *resource,  int resourceLen)
   FILE *file;
   file = fopen(resource, "r");
   if( ! file)
-    {
-      write(fd, NotFound, strlen(NotFound));
-      write(fd, LN, strlen(LN));
-    }
+    sendHeaders(fd, NotFound, NULL, getMimeType(resource),0,0);
   else
     {
       if(stat(resource, &statBuf) == -1)
@@ -243,19 +233,17 @@ void HEAD(int fd, char *resource,  int resourceLen)
 
 void PUT(int fd, char *resource,  int resourceLen, char *request, int requestLen)
 {
-  FILE * file = fopen(resource, "w+");
-  if (! file) // make sure file does Not exist
+  FILE * file;
+  int num;
+  if((file = fopen(resource, "w")) != NULL)
     {
-      write(fd, Forbidden, strlen(Forbidden));
-      write(fd, LN, strlen(LN));
+      if( (num = fputs( request, file )) != EOF )
+	fclose(file);
+      else
+	sendHeaders(fd, Forbidden, NULL, getMimeType(resource),0,0);
     }
   else
-    {
-      strtok(request, "\r\n\r\n");
-      char * body = strtok(NULL, "\0");
-      fputs(body, file);
-      sendHeaders(fd, OK, NULL, getMimeType(resource),0,0);
-    }
+    sendHeaders(fd, Forbidden, NULL, getMimeType(resource),0,0);
 }
 
 
@@ -264,8 +252,7 @@ void DELETE(int fd, char *resource,  int resourceLen)
   FILE *file = fopen(resource, "a+");
   if (!file)
     {
-      write(fd, Forbidden, strlen(Forbidden));
-      write(fd, LN, strlen(LN));
+      sendHeaders(fd, Forbidden, NULL, getMimeType(resource),0,0);
     }
   else
     {
