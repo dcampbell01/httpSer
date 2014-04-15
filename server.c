@@ -51,7 +51,7 @@ char * getMimeType(char *name);
 void sendHeaders(int fd, const char *status, char *extra, char *fileExtension, int length, time_t lastModDate);
 void GET(int fd, char *resource, int resourceLen);
 void HEAD(int fd, char *resource, int resourceLen);
-void PUT(int fd, char *resource, int resourceLen);
+void PUT(int fd, char *resource, int resourceLen, char *request, int requestLen);
 void DELETE(int fd, char *resource, int resourceLen);
 
 
@@ -113,7 +113,7 @@ void ProcessRequest(int fd, char * request, int requestLen)
     }
   else if(strcmp(method, "PUT") == 0)
     {	
-      PUT(fd, resource, resourceLen);
+      PUT(fd, resource, resourceLen, request, requestLen);
     }
   else if(strcmp(method, "DELETE") == 0)
     {	
@@ -241,25 +241,19 @@ void HEAD(int fd, char *resource,  int resourceLen)
 
 
 
-void PUT(int fd, char *resource,  int resourceLen)
+void PUT(int fd, char *resource,  int resourceLen, char *request, int requestLen)
 {
-  char data[4096];
-
-  FILE * checkFileExists = fopen(resource, "r");
-  if (checkFileExists)
+  FILE * file = fopen(resource, "w+");
+  if (! file) // make sure file does Not exist
     {
       write(fd, Forbidden, strlen(Forbidden));
       write(fd, LN, strlen(LN));
     }
   else
     {
-      fclose(checkFileExists);
-      FILE *putFile = fopen(resource, "w");
-      int rd;
-      while ((rd = read(fd, data, 4096)) > 0) 
-	fputs(data, putFile);
-
-      fclose(putFile);
+      strtok(request, "\r\n\r\n");
+      char * body = strtok(NULL, "\0");
+      fputs(body, file);
       sendHeaders(fd, OK, NULL, getMimeType(resource),0,0);
     }
 }
