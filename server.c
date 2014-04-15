@@ -274,6 +274,7 @@ void DELETE(int fd, char *resource,  int resourceLen)
     }
   else
     {
+      fclose(file);
       remove(resource);
       sendHeaders(fd, OK, NULL, getMimeType(resource),0,0);
     }
