@@ -85,11 +85,11 @@ void ProcessRequest(int fd, char * request, int requestLen)
   char * method;
   char * resource;
   char * version;
-
-  // Does NOT check for correct number of arguments !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  // Does NOT handle receiving ZERO requirements nicely
   method = strtok(request, " ");
   resource = strtok(NULL, " ");
   version = strtok(NULL, " "); // currently does nothing with version received !!!!!!!!!!!!!!!!!!
+
   // special case: if resource is just forward slash then resource is index.html
   if( (method == NULL) || (resource == NULL) || (version == NULL) ) // require 3 arguments
     {
@@ -112,7 +112,10 @@ void ProcessRequest(int fd, char * request, int requestLen)
     }
   else if(strcmp(method, "PUT") == 0)
     {	
-      PUT(fd, resource, resourceLen, request, requestLen);
+      char * receivedBody;
+      strtok(NULL, "\r\n\r\n");
+      receivedBody = strtok(NULL, "\0");
+      PUT(fd, resource, resourceLen, receivedBody, strlen(receivedBody));
     }
   else if(strcmp(method, "DELETE") == 0)
     {	
@@ -237,7 +240,7 @@ void PUT(int fd, char *resource,  int resourceLen, char *request, int requestLen
   int num;
   if((file = fopen(resource, "w")) != NULL)
     {
-      if( (num = fputs( request, file )) != EOF )
+      if( (num = fputs( test, file )) != EOF )
 	fclose(file);
       else
 	sendHeaders(fd, Forbidden, NULL, getMimeType(resource),0,0);
