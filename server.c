@@ -81,23 +81,26 @@ void * clientHandler(void *arg)
 
 void ProcessRequest(int fd, char * request, int requestLen)
 { 
-  char *method;
-  char *resource;
-  char *version;
+  char * method;
+  char * resource;
+  char * version;
 
   // Does NOT check for correct number of arguments !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   method = strtok(request, " ");
   resource = strtok(NULL, " ");
   version = strtok(NULL, " "); // currently does nothing with version received !!!!!!!!!!!!!!!!!!
-  
   // special case: if resource is just forward slash then resource is index.html
+  if( (method == NULL) || (resource == NULL) || (version == NULL) )
+    {
+      write(fd, BadRequest, strlen(BadRequest));
+      write(fd, LN, strlen(LN));
+      return; // require 3 arguments
+    }
+  
   if( strcmp(resource, "/")==0 )
     resource = "index.html";
-
-  printf("request: %s %s %s", method, resource, version); 
   
-  //GET(fd, "index.html", strlen("index.html"));
-
+  printf("request: %s %s %s", method, resource, version); 
   int resourceLen = strlen(resource);
   if(strcmp(method, "GET") == 0)
     {
@@ -194,10 +197,14 @@ void GET(int fd, char *resource,  int resourceLen)
       sendHeaders(fd, OK, NULL, getMimeType(resource), bodyLen, statBuf.st_mtime);
       int next;
       FILE* fp = fdopen(fd, "w");
-      while( (next = fread(body, 1, sizeof(body), file)) > 0)
+      /*while( (next = fread(body, 1, sizeof(body), file)) > 0)
 	  {
 	    fwrite(body, 1, next, fp);
-	  }
+	    }*/
+      char temp[MAXLINE];
+      while(fgets(temp, MAXLINE, file) != NULL)
+	strcat(body, temp);
+      write(fd, body, strlen(body));
     }
 }
 
