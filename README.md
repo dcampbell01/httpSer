@@ -42,8 +42,7 @@ No caching and no authentication.
 Unresolved Issues:
 ------------------
 
-* Sending 1 or 2 arguments will crash the server.  0, 3, and more are fine
-* DELETE doesn't send the right message when deleting a file that DNE
+* Sending 1 argument will crash the server.  0, 2, 3, or more are fine
 
 
 
