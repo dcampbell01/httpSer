@@ -12,24 +12,24 @@
 #include <unistd.h>
 #include <time.h>
 #include <sys/stat.h>
-//#include <netinet/ip.h>
 #include <string.h>
 #include <sys/stat.h>
+//#include <netinet/ip.h>
+
+
+
 
 // Server  Constants
 #define MAXLINE	40000
 #define SERVER_NAME "TheNotSoAmazing8-dayServer"
 #define HTTP_VERSION "HTTP/1.0"
 #define DATE_FORMAT "%d %b %Y %H:%M:%S GMT" // RFC1123 format
-const int backlog = 10;
 typedef int bool;
 #define true 1
 #define false 0
 #define LN "\r\n"
-
-
-
-
+// Miscellaneous Constants
+const int backlog = 10;
 // Status Messages
 const  char * OK = "200 OK"; // Request has succeeded (GET: here's your file.  HEAD: Here's info, you don't have it cached.  DELETE: Success)
 const  char * Created = "201 Created"; // New resource was created (PUT)
@@ -42,17 +42,17 @@ const  char * NotFound = "404 Not Found"; // Resource DNE (GET&HEAD&DELETE)
 
 // threaded client handler
 void * clientHandler(void *arg);
-
 // Handle requests of clients
 void ProcessRequest(int fd, char * request, int requestLen);
-
-// HTTP functions, as defined in http://www.w3.org/Protocols/HTTP/1.0/spec.html#Server
+// HTTP method helper functions
 char * getMimeType(char *name);
 void sendHeaders(int fd, const char *status, char *extra, char *fileExtension, int length, time_t lastModDate);
+// HTTP functions, as defined in http://www.w3.org/Protocols/HTTP/1.0/spec.html#Server
 void GET(int fd, char *resource, int resourceLen);
 void HEAD(int fd, char *resource, int resourceLen);
 void PUT(int fd, char *resource, int resourceLen, char *request, int requestLen);
 void DELETE(int fd, char *resource, int resourceLen);
+
 
 
 
@@ -71,14 +71,12 @@ void * clientHandler(void *arg)
 	  close (fd);
 	  return (void*) 0;
 	}    
-      
+
       ProcessRequest(fd, request, strlen(request)); 
       close(fd);
       return (void*) 0;
     }
 }
-
-
 
 void ProcessRequest(int fd, char * request, int requestLen)
 { 
@@ -142,7 +140,6 @@ char * getMimeType(char *name)
     return NULL;
 }
 
-
 void sendHeaders(int fd, const char *status, char *extra, char *fileExtension, int length, time_t lastModDate)
 {
   time_t now;
@@ -177,6 +174,8 @@ void sendHeaders(int fd, const char *status, char *extra, char *fileExtension, i
   write(fd, sb, strlen(sb));
 }
 
+
+
 void GET(int fd, char *resource,  int resourceLen)
 {
   // Open requested resource and send back the contents
@@ -207,7 +206,6 @@ void GET(int fd, char *resource,  int resourceLen)
     }
 }
 
-
 void HEAD(int fd, char *resource,  int resourceLen)
 {
 
@@ -232,8 +230,6 @@ void HEAD(int fd, char *resource,  int resourceLen)
     }
 }
 
-
-
 void PUT(int fd, char *resource,  int resourceLen, char *request, int requestLen)
 {
   FILE * file;
@@ -249,7 +245,6 @@ void PUT(int fd, char *resource,  int resourceLen, char *request, int requestLen
     sendHeaders(fd, Forbidden, NULL, getMimeType(resource),0,0);
 }
 
-
 void DELETE(int fd, char *resource,  int resourceLen)
 {
   FILE *file = fopen(resource, "a+");
@@ -264,6 +259,7 @@ void DELETE(int fd, char *resource,  int resourceLen)
       sendHeaders(fd, OK, NULL, getMimeType(resource),0,0);
     }
 }
+
 
 
 // Server Main
