@@ -86,7 +86,7 @@ void ProcessRequest(int fd, char * request, int requestLen)
   char * version;
   char * body;
   
-  if(requestLen <= 2) // requestLen of 2 means telnet sent empty string
+  if(requestLen <= 3) // requestLen of 2 means telnet sent empty string
     {
       sendHeaders(fd, BadRequest, NULL, NULL,0,0);
       return;
