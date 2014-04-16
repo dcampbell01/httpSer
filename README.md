@@ -24,20 +24,17 @@ chmod 777 index.htm
 The State of the Program:
 -------------------------
 
-Receives HTTP\1.0 responses and processes them as if they were HTTP\0.9 (simple) requests.  This means no 
-caching or authentication.  It creates and sends valid HTTP\1.0 responses. (or at least is meant to do that;
-currently none of the HTTP methods are functioning properly)
-
+GET, HEAD, and DELETE work!
 Strings are now passed around sanely.  
+No caching and no authentication.
 
 
 
 Unresolved Issues:
 ------------------
 
-- implement HEAD, GET, PUT, DELETE.
+- implement PUT.  It appears that telnet only sends the request line so implementing PUT is going to have be hacky...
 - Fix all lines marked !!!!!!!!!!!!!!!!!!!!!!!!!!!!!! or ///////////////////////////////////////////
-- Test that our server respods to HTTP\1.0 responses with an HTTP\0.9 response
 
 
 Miscellaneous Notes:
