@@ -44,7 +44,7 @@ void * clientHandler(void *arg);
 // Handle requests of clients
 void ProcessRequest(int fd, char * request, int requestLen);
 // HTTP method helper functions
-char * getMimeType(char *name);
+char * getMimeType(char *name, int nameLen);
 void sendHeaders(int fd, const char *status, char *extra, char *fileExtension, int length, time_t lastModDate);
 // HTTP functions, as defined in http://www.w3.org/Protocols/HTTP/1.0/spec.html#Server
 void GET(int fd, char *resource, int resourceLen);
@@ -59,19 +59,19 @@ void DELETE(int fd, char *resource, int resourceLen);
 
 void * clientHandler(void *arg)
 {
-  int n;
+  int requestLen;
   int fd = *(int*)(arg);
   char request[MAXLINE];
 	
   while (1) 
     {
-      if ((n = read(fd, request, MAXLINE)) == 0) 
+      if ((requestLen = read(fd, request, MAXLINE)) == 0) 
 	{
 	  close (fd);
 	  return (void*) 0;
 	}    
 
-      ProcessRequest(fd, request, strlen(request)); 
+      ProcessRequest(fd, request, requestLen); 
       close(fd);
       return (void*) 0;
     }
@@ -79,27 +79,33 @@ void * clientHandler(void *arg)
 
 void ProcessRequest(int fd, char * request, int requestLen)
 { 
+  printf("request: %s", request);
+
   char * method;
   char * resource;
   char * version;
   char * body;
-  // Does NOT handle receiving ZERO requirements nicely
-  method = strtok(request, " ");
-  resource = strtok(NULL, " ");
-  version = strtok(NULL, " "); // currently does nothing with version
-
-
-  // special case: if resource is just forward slash then resource is index.html
-  if( (method == NULL) || (resource == NULL) || (version == NULL) ) // require 3 arguments
+  
+  if(requestLen <= 2) // requestLen of 2 means telnet sent empty string
     {
-      sendHeaders(fd, BadRequest, NULL, getMimeType(resource),0,0);
+      sendHeaders(fd, BadRequest, NULL, NULL,0,0);
       return;
     }
   
+  
+  method = strtok(request, " ");
+  resource = strtok(NULL, " ");
+  version = strtok(NULL, " "); // currently does nothing with version
+  if( (method == NULL) || (resource == NULL) || (version == NULL) ) // require 3 arguments
+    {
+      sendHeaders(fd, BadRequest, NULL, getMimeType(resource, strlen(resource)),0,0);
+      return;
+    }
+  
+  // special case: if resource is just forward slash then resource is index.html
   if( strcmp(resource, "/")==0 )
     resource = "index.html";
-  
-  printf("request: %s %s %s", method, resource, version); 
+   
   int resourceLen = strlen(resource);
   if(strcmp(method, "GET") == 0)
     {
@@ -120,15 +126,18 @@ void ProcessRequest(int fd, char * request, int requestLen)
       DELETE(fd, resource, resourceLen);
     }
   else
-    sendHeaders(fd, BadRequest, NULL, getMimeType(resource),0,0);
+    sendHeaders(fd, BadRequest, NULL, getMimeType(resource, strlen(resource)),0,0);
 
 
   close(fd);
   return; // exit function
 }
 
-char * getMimeType(char *name)
+char * getMimeType(char *name, int nameLen)
 {
+  if(nameLen <= 0)
+    return NULL;
+
   char *ext = strrchr(name, '.');
   if (!ext) 
     return NULL;
@@ -186,7 +195,7 @@ void GET(int fd, char *resource,  int resourceLen)
   file = fopen(resource, "r");
   if( ! file)
     {
-      sendHeaders(fd, NotFound, NULL, getMimeType(resource),0,0);
+      sendHeaders(fd, NotFound, NULL, getMimeType(resource, strlen(resource)),0,0);
     }
   else
     {
@@ -196,7 +205,7 @@ void GET(int fd, char *resource,  int resourceLen)
 	  return;
 	}
       int bodyLen = S_ISREG(statBuf.st_mode) ? statBuf.st_size : -1;
-      sendHeaders(fd, OK, NULL, getMimeType(resource), bodyLen, statBuf.st_mtime);
+      sendHeaders(fd, OK, NULL, getMimeType(resource, strlen(resource)), bodyLen, statBuf.st_mtime);
       int next;
       FILE* fp = fdopen(fd, "w");
       char temp[MAXLINE];
@@ -216,7 +225,7 @@ void HEAD(int fd, char *resource,  int resourceLen)
   FILE *file;
   file = fopen(resource, "r");
   if( ! file)
-    sendHeaders(fd, NotFound, NULL, getMimeType(resource),0,0);
+    sendHeaders(fd, NotFound, NULL, getMimeType(resource, strlen(resource)),0,0);
   else
     {
       if(stat(resource, &statBuf) == -1)
@@ -225,7 +234,7 @@ void HEAD(int fd, char *resource,  int resourceLen)
 	  return;
 	}
       int bodyLen = S_ISREG(statBuf.st_mode) ? statBuf.st_size : -1;
-      sendHeaders(fd, OK, NULL, getMimeType(resource), bodyLen, statBuf.st_mtime); 
+      sendHeaders(fd, OK, NULL, getMimeType(resource, strlen(resource)), bodyLen, statBuf.st_mtime); 
       
     }
 }
@@ -239,13 +248,13 @@ void PUT(int fd, char *resource,  int resourceLen, char *body, int bodyLen)
       if( (num = fputs( body, file )) != EOF )
 	{
 	  fclose(file);
-	  sendHeaders(fd, Created, NULL, getMimeType(resource),0,0);
+	  sendHeaders(fd, Created, NULL, getMimeType(resource, strlen(resource)),0,0);
 	}
       else
-	sendHeaders(fd, Forbidden, NULL, getMimeType(resource),0,0);
+	sendHeaders(fd, Forbidden, NULL, getMimeType(resource, strlen(resource)),0,0);
     }
   else
-    sendHeaders(fd, Forbidden, NULL, getMimeType(resource),0,0);
+    sendHeaders(fd, Forbidden, NULL, getMimeType(resource, strlen(resource)),0,0);
 }
 
 void DELETE(int fd, char *resource,  int resourceLen)
@@ -253,13 +262,13 @@ void DELETE(int fd, char *resource,  int resourceLen)
   FILE *file = fopen(resource, "a+");
   if (!file)
     {
-      sendHeaders(fd, Forbidden, NULL, getMimeType(resource),0,0);
+      sendHeaders(fd, Forbidden, NULL, getMimeType(resource, strlen(resource)),0,0);
     }
   else
     {
       fclose(file);
       remove(resource);
-      sendHeaders(fd, OK, NULL, getMimeType(resource),0,0);
+      sendHeaders(fd, OK, NULL, getMimeType(resource, strlen(resource)),0,0);
     }
 }
 
