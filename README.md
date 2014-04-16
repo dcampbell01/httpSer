@@ -43,8 +43,7 @@ Unresolved Issues:
 ------------------
 
 * Sending 1 or 2 arguments will crash the server.  0, 3, and more are fine
-* Would be nice to have it automatically find files of different file extensions from the same filename ( index.* , 
-  where * could be .html, .htm, .txt, no extension, and possibly other)
+* DELETE doesn't send the right message when deleting a file that DNE
 
 
 
