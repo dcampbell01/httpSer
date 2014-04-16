@@ -13,7 +13,7 @@ make
 How to Run the Server:
 ----------------------
 
-Make sure that a file named index.h, containing valid html, exists in the same 
+Make sure that a file named index.html, containing valid html, exists in the same 
 directory as the executable.  In that directory, type the following then press 
 enter at the end of each line:
 chmod 777 index.htm
@@ -43,7 +43,8 @@ Unresolved Issues:
 ------------------
 
 * Sending 0 arguments will crash the server
-
+* Would be nice to have it automatically find files of different file extensions from the same filename ( index.* , 
+  where * could be .html, .htm, .txt, no extension, and possibly other)
 
 
 
