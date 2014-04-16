@@ -13,10 +13,13 @@ make
 How to Run the Server:
 ----------------------
 
-Make sure that a file named index.htm, containing valid html, exists in the same directory as the executable.
-In that directory, type the following then press enter at the end of each line:
+Make sure that a file named index.h, containing valid html, exists in the same 
+directory as the executable.  In that directory, type the following then press 
+enter at the end of each line:
 chmod 777 index.htm
 ./server 12345
+
+Test the server with a browser or with telnet, at IP Address 144.37.1.24.
 
 
 
@@ -24,17 +27,24 @@ chmod 777 index.htm
 The State of the Program:
 -------------------------
 
-GET, HEAD, and DELETE work!
-Strings are now passed around sanely.  
+GET, HEAD, and DELETE, and PUT work!*
+  * PUT works in a strange way because telnet doesn't send full HTTP/1.0
+
+Binds to the port you specify and all IP addresses that Empress (or host 
+machine) has available.  For Empress, 144.37.1.24 and 127.0.0.1 are usually 
+available.
+
 No caching and no authentication.
+
 
 
 
 Unresolved Issues:
 ------------------
 
-- implement PUT.  It appears that telnet only sends the request line so implementing PUT is going to have be hacky...
-- Fix all lines marked !!!!!!!!!!!!!!!!!!!!!!!!!!!!!! or ///////////////////////////////////////////
+* Sending 0 arguments will crash the server
+
+
 
 
 Miscellaneous Notes:

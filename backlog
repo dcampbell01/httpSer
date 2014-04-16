@@ -1,8 +1,0 @@
-Caching with 304 codes
-
-print headers, taking error codes as some sort of argument
-
-PUT:
-
-creates file but throws away the body of our request (we need the body, it is the file the client is trying to put!!!!!)
-

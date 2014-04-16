@@ -21,23 +21,22 @@
 
 // Server  Constants
 #define MAXLINE	40000
-#define SERVER_NAME "TheNotSoAmazing8-dayServer"
+#define SERVER_NAME "TheNotSoAmazing10-dayServer"
 #define HTTP_VERSION "HTTP/1.0"
 #define DATE_FORMAT "%d %b %Y %H:%M:%S GMT" // RFC1123 format
 typedef int bool;
 #define true 1
 #define false 0
 #define LN "\r\n"
+// Status Messages
+const char * OK = "200 OK"; // Request has succeeded (GET: here's your file.  HEAD: Here's info, you don't have it cached.  DELETE: Success)
+const char * Created = "201 Created"; // New resource was created (PUT)
+const char * NotModified = "304 Not Modified"; // Same date on cached and server resource  (HEAD: You have it cached.  GET: You have up-to-date copy)
+const char * BadRequest = "400 Bad Request"; // Malformed request; throw it out
+const char * Forbidden  = "403 Forbidden"; // Resource requested is not marked world-readable (PUT&DELETE: no write permission.  GET&HEAD: no read permission)
+const char * NotFound = "404 Not Found"; // Resource DNE (GET&HEAD&DELETE)
 // Miscellaneous Constants
 const int backlog = 10;
-// Status Messages
-const  char * OK = "200 OK"; // Request has succeeded (GET: here's your file.  HEAD: Here's info, you don't have it cached.  DELETE: Success)
-const  char * Created = "201 Created"; // New resource was created (PUT)
-const  char * NotModified = "304 Not Modified"; // Same date on cached and server resource  (HEAD: You have it cached.  GET: You have up-to-date copy)
-const  char * BadRequest = "400 Bad Request"; // Malformed request; throw it out
-const  char * Forbidden = "403 Forbidden"; // Resource requested is not marked world-readable (PUT&DELETE: no write permission.  GET&HEAD: no read permission)
-const  char * NotFound = "404 Not Found"; // Resource DNE (GET&HEAD&DELETE)
-
 
 
 // threaded client handler
@@ -50,7 +49,7 @@ void sendHeaders(int fd, const char *status, char *extra, char *fileExtension, i
 // HTTP functions, as defined in http://www.w3.org/Protocols/HTTP/1.0/spec.html#Server
 void GET(int fd, char *resource, int resourceLen);
 void HEAD(int fd, char *resource, int resourceLen);
-void PUT(int fd, char *resource, int resourceLen, char *request, int requestLen);
+void PUT(int fd, char *resource, int resourceLen, char *body, int bodyLen);
 void DELETE(int fd, char *resource, int resourceLen);
 
 
@@ -83,10 +82,12 @@ void ProcessRequest(int fd, char * request, int requestLen)
   char * method;
   char * resource;
   char * version;
+  char * body;
   // Does NOT handle receiving ZERO requirements nicely
   method = strtok(request, " ");
   resource = strtok(NULL, " ");
-  version = strtok(NULL, " "); // currently does nothing with version received !!!!!!!!!!!!!!!!!!
+  version = strtok(NULL, " "); // currently does nothing with version
+
 
   // special case: if resource is just forward slash then resource is index.html
   if( (method == NULL) || (resource == NULL) || (version == NULL) ) // require 3 arguments
@@ -111,7 +112,6 @@ void ProcessRequest(int fd, char * request, int requestLen)
   else if(strcmp(method, "PUT") == 0)
     {	
       char * receivedBody;
-      strtok(NULL, "\r\n\r\n");
       receivedBody = strtok(NULL, "\0");
       PUT(fd, resource, resourceLen, receivedBody, strlen(receivedBody));
     }
@@ -192,7 +192,7 @@ void GET(int fd, char *resource,  int resourceLen)
     {
       if(stat(resource, &statBuf) == -1)
 	{
-	  perror("stat"); // TEST CODE !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+	  perror("stat");
 	  return;
 	}
       int bodyLen = S_ISREG(statBuf.st_mode) ? statBuf.st_size : -1;
@@ -230,14 +230,17 @@ void HEAD(int fd, char *resource,  int resourceLen)
     }
 }
 
-void PUT(int fd, char *resource,  int resourceLen, char *request, int requestLen)
+void PUT(int fd, char *resource,  int resourceLen, char *body, int bodyLen)
 {
   FILE * file;
   int num;
   if((file = fopen(resource, "w")) != NULL)
     {
-      if( (num = fputs( request, file )) != EOF )
-	fclose(file);
+      if( (num = fputs( body, file )) != EOF )
+	{
+	  fclose(file);
+	  sendHeaders(fd, Created, NULL, getMimeType(resource),0,0);
+	}
       else
 	sendHeaders(fd, Forbidden, NULL, getMimeType(resource),0,0);
     }
