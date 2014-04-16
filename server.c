@@ -259,7 +259,7 @@ void PUT(int fd, char *resource,  int resourceLen, char *body, int bodyLen)
 
 void DELETE(int fd, char *resource,  int resourceLen)
 {
-  FILE *file = fopen(resource, "a+");
+  FILE *file = fopen(resource, "r");
   if (!file)
     {
       sendHeaders(fd, Forbidden, NULL, getMimeType(resource, strlen(resource)),0,0);
